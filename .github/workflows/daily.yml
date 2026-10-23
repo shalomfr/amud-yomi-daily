@@ -5,6 +5,13 @@ on:
     - cron: '5 21 * * *'
     - cron: '5 22 * * *'
   workflow_dispatch:
+    inputs:
+      keepalive_days:
+        description: 'גיל הקומיט האחרון (בימים) שמעליו נוצר קומיט keepalive'
+        default: '30'
+
+permissions:
+  contents: write
 jobs:
   update:
     runs-on: ubuntu-24.04
@@ -22,3 +29,16 @@ jobs:
       - name: יצירת .env מהסודות
         run: printf 'YEMOT_USER=%s\nYEMOT_PASS=%s\n' "${{ secrets.YEMOT_USER }}" "${{ secrets.YEMOT_PASS }}" > .env
       - run: node update-opening.mjs
+      - name: keepalive (GitHub משבית ריצות מתוזמנות בריפו ציבורי אחרי 60 יום בלי פעילות)
+        env:
+          DAYS: ${{ github.event.inputs.keepalive_days || '30' }}
+        run: |
+          age=$(( $(date +%s) - $(git log -1 --format=%ct) ))
+          if [ "$age" -ge $(( DAYS * 86400 )) ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "keepalive"
+            git push
+          else
+            echo "הקומיט האחרון בן $(( age / 86400 )) ימים, אין צורך ב-keepalive"
+          fi
