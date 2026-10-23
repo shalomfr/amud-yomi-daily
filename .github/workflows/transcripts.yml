@@ -1,0 +1,49 @@
+name: תמלול הקלטות למייל
+on:
+  schedule:
+    - cron: '0 4 * * *'   # פעם ביום, בבוקר (06:00–07:00 שעון ישראל)
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'מקסימום הקלטות בריצה (0 = הכול)'
+        default: '0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: transcripts
+  cancel-in-progress: false
+
+jobs:
+  transcribe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-ivrit-whisper-large-v3-turbo-ct2
+      - run: python -m pip install -q faster-whisper requests
+      - name: תמלול ושליחה (בלי להדפיס תוכן)
+        env:
+          YEMOT_USER: ${{ secrets.YEMOT_USER }}
+          YEMOT_PASS: ${{ secrets.YEMOT_PASS }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          HF_HUB_DISABLE_PROGRESS_BARS: '1'
+        run: python transcribe_mail.py --limit "${{ github.event.inputs.limit || '0' }}"
+      - name: שמירת מצב (אילו הקלטות כבר נשלחו)
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain state)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state
+            git commit -m "עדכון מצב תמלולים"
+            git pull -q --rebase
+            git push
+          fi
