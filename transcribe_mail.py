@@ -1,7 +1,7 @@
 # מתמלל (Whisper בעברית) את ההקלטות החדשות בשלוחה 1 של הקו ושולח אותן למייל במיילים מסוכמים.
 # הריפו ציבורי ויומני הריצה ציבוריים — לכן הסקריפט לעולם לא מדפיס תמלול, מספרי טלפון או שמות; רק ספירות.
 # שימוש: python transcribe_mail.py [--limit N] [--chunk 20]
-import argparse, html, json, os, sys, tempfile, time
+import argparse, html, json, os, sys, tempfile, time, traceback
 from pathlib import Path
 
 import requests
@@ -84,6 +84,7 @@ def main():
                 print(f"  הקלטה {f['name'][:-4]}: {round(f.get('duration') or 0)} שניות הוקלטו, תומללו ב-{round(time.time() - t0)} שניות")
             except Exception as e:  # לא מדפיסים פרטים; ההקלטה תנוסה שוב בריצה הבאה
                 print(f"  הקלטה {f['name'][:-4]}: נכשלה ({type(e).__name__})")
+                print('   ', ' | '.join(traceback.format_exc().splitlines()[-4:]), flush=True)  # קוד ושגיאה בלבד, לא תוכן
         if not items:
             continue
         body, title = build_html(items, ci, len(chunks))
