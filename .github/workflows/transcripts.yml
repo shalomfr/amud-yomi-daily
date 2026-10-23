@@ -28,7 +28,7 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: hf-ivrit-whisper-large-v3-turbo-ct2
-      - run: python -m pip install -q -U "av>=14" faster-whisper requests
+      - run: python -m pip install -q faster-whisper requests numpy
       - name: תמלול ושליחה (בלי להדפיס תוכן)
         env:
           YEMOT_USER: ${{ secrets.YEMOT_USER }}

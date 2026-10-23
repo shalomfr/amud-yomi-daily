@@ -4,6 +4,9 @@
 import argparse, html, json, os, sys, tempfile, time, traceback
 from pathlib import Path
 
+import wave
+
+import numpy as np
 import requests
 
 FOLDER = 'ivr2:/1'
@@ -26,6 +29,19 @@ def download(f, dest):
     r = requests.get(f'{YEMOT}/DownloadFile', params={'token': TOKEN, 'path': f['what']}, timeout=120)
     r.raise_for_status()
     Path(dest).write_bytes(r.content)
+
+
+def load_audio(path):
+    """wav של ימות (PCM 16-bit, 8kHz) -> float32 ב-16kHz, בלי ספריית av."""
+    with wave.open(str(path), 'rb') as w:
+        sr, ch = w.getframerate(), w.getnchannels()
+        a = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768.0
+    if ch > 1:
+        a = a.reshape(-1, ch).mean(axis=1)
+    if sr != 16000:
+        n = int(len(a) * 16000 / sr)
+        a = np.interp(np.linspace(0, len(a) - 1, n), np.arange(len(a)), a).astype(np.float32)
+    return a
 
 
 def fmt_phone(p):
@@ -78,7 +94,7 @@ def main():
                 with tempfile.TemporaryDirectory() as td:
                     p = Path(td) / 'a.wav'
                     download(f, p)
-                    segs, _ = model.transcribe(str(p), language='he', vad_filter=True, beam_size=5)
+                    segs, _ = model.transcribe(load_audio(p), language='he', vad_filter=True, beam_size=5)
                     text = ' '.join(s.text.strip() for s in segs).strip()
                 items.append({'file': f, 'text': text})
                 print(f"  הקלטה {f['name'][:-4]}: {round(f.get('duration') or 0)} שניות הוקלטו, תומללו ב-{round(time.time() - t0)} שניות")
