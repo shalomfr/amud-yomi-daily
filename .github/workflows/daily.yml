@@ -1,0 +1,23 @@
+name: עדכון פתיח העמוד היומי
+on:
+  schedule:
+    # שתי ריצות (חורף/קיץ) כדי לכסות 00:05 שעון ישראל; התוצאה זהה ולכן הכפילות בלתי מזיקה
+    - cron: '5 21 * * *'
+    - cron: '5 22 * * *'
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: python -m pip install -U edge-tts
+      - name: יצירת .env מהסודות
+        run: printf 'YEMOT_USER=%s\nYEMOT_PASS=%s\n' "${{ secrets.YEMOT_USER }}" "${{ secrets.YEMOT_PASS }}" > .env
+      - run: node update-opening.mjs
